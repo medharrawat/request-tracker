@@ -4,13 +4,20 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { ChevronLeft, Plus } from "lucide-react";
 import type { Case, ManageAction, Request, RequestStatus } from "@/lib/types";
-import { applyManageAction } from "@/lib/manage-actions";
-import type { ManageActionPayload } from "@/lib/manage-actions";
+import {
+  applyManageAction,
+  type ManageActionPayload,
+} from "@/lib/manage-actions";
 import { FilterBar } from "@/components/ui/FilterBar";
 import { FiltersPanel } from "@/components/ui/FiltersPanel";
 import { TableHeader } from "@/components/ui/TableHeader";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { NewRequestModal } from "@/components/case/NewRequestModal";
 import { RequestRow } from "@/components/request/RequestRow";
+import {
+  createRequestFromInput,
+  type NewRequestInput,
+} from "@/lib/create-request";
 import {
   arraysEqual,
   DEFAULT_REQUEST_SORT_ORDER,
@@ -22,9 +29,15 @@ import {
 } from "@/lib/filters";
 import { getStatusLabel } from "@/lib/request-status";
 import { formatDate } from "@/lib/format";
+import {
+  BLOCKED_REQUEST_TABLE_HEADER_CLASS,
+  CASE_REQUEST_TABLE_HEADER_CLASS,
+  TABLE_HEADER_CELL_CLASS,
+} from "@/lib/layout";
 
 type CasePageContentProps = {
   caseData: Case;
+  referenceDate: string;
 };
 
 function collectCaseStatusOptions(requests: Request[]): RequestStatus[] {
@@ -40,7 +53,10 @@ function collectCaseStatusOptions(requests: Request[]): RequestStatus[] {
   );
 }
 
-export function CasePageContent({ caseData }: CasePageContentProps) {
+export function CasePageContent({
+  caseData,
+  referenceDate,
+}: CasePageContentProps) {
   const [search, setSearch] = useState("");
   const [selectedAssignees, setSelectedAssignees] = useState<string[]>([]);
   const [selectedStatuses, setSelectedStatuses] = useState<RequestStatus[]>(() =>
@@ -50,15 +66,15 @@ export function CasePageContent({ caseData }: CasePageContentProps) {
     DEFAULT_REQUEST_SORT_ORDER,
   );
   const [requests, setRequests] = useState(caseData.requests);
-  const [expandAllActivity, setExpandAllActivity] = useState(false);
+  const [newRequestOpen, setNewRequestOpen] = useState(false);
 
   const assigneeOptions = useMemo(() => {
-    const assignees = new Set<string>();
+    const assignees = new Set<string>(caseData.assignees);
     for (const request of requests) {
       assignees.add(request.assignee);
     }
     return [...assignees].sort();
-  }, [requests]);
+  }, [caseData.assignees, requests]);
 
   const statusOptions = useMemo(
     () => collectCaseStatusOptions(requests),
@@ -70,6 +86,9 @@ export function CasePageContent({ caseData }: CasePageContentProps) {
     [statusOptions],
   );
 
+  const statusFilters =
+    selectedStatuses.length > 0 ? selectedStatuses : defaultSelectedStatuses;
+
   const blockedRequests = useMemo(() => {
     const blocked = requests.filter((req) => req.needsAction);
     const filtered = blocked.filter(
@@ -80,17 +99,22 @@ export function CasePageContent({ caseData }: CasePageContentProps) {
     return sortRequests(filtered, sortOrder);
   }, [requests, selectedAssignees, sortOrder]);
 
-  const generalRequests = requests.filter((req) => !req.needsAction);
+  const generalRequests = useMemo(
+    () => requests.filter((req) => !req.needsAction),
+    [requests],
+  );
 
   const filteredGeneral = useMemo(() => {
     const filtered = filterRequests(
       generalRequests,
       search,
       selectedAssignees,
-      selectedStatuses,
+      statusFilters,
     );
     return sortRequests(filtered, sortOrder);
-  }, [generalRequests, search, selectedAssignees, selectedStatuses, sortOrder]);
+  }, [generalRequests, search, selectedAssignees, statusFilters, sortOrder]);
+
+  const defaultAssignee = caseData.assignees[0];
 
   function toggleAssignee(assignee: string) {
     setSelectedAssignees((current) => toggleValue(current, assignee));
@@ -116,143 +140,187 @@ export function CasePageContent({ caseData }: CasePageContentProps) {
     );
   }
 
-  if (requests.length === 0) {
-    return (
-      <div className="space-y-spacing-6">
-        <CaseHeader caseData={caseData} />
-        <EmptyState
-          title="No requests yet"
-          description="Add a request to start tracking documents for this case, or close the case if nothing is outstanding."
-          primaryAction={{ label: "Add request" }}
-          secondaryAction={{ label: "Close case" }}
-        />
-      </div>
-    );
+  function handleCreateRequest(input: NewRequestInput) {
+    setRequests((current) => {
+      const next = [...current, createRequestFromInput(input)];
+      if (current.length === 0) {
+        setSelectedStatuses(
+          getDefaultSelectedStatuses(collectCaseStatusOptions(next)),
+        );
+      }
+      return next;
+    });
+  }
+
+  function openNewRequestModal() {
+    setNewRequestOpen(true);
   }
 
   return (
     <div className="space-y-spacing-6">
-      <CaseHeader caseData={caseData} />
+      <CaseHeader caseData={caseData} onNewRequest={openNewRequestModal} />
 
-      {blockedRequests.length > 0 && (
-        <section>
-          <div className="rounded-radius-xl border border-border">
-            <TableHeader className="rounded-t-radius-xl" variant="blocked">
-              <h2 className="text-xs font-semibold uppercase tracking-wide text-text-primary">
-                Blocked Requests
-              </h2>
-            </TableHeader>
-            {blockedRequests.map((request) => (
-              <RequestRow
-                key={`${request.id}-${expandAllActivity}`}
-                request={request}
-                variant="case-blocked"
-                expandAllActivity={expandAllActivity}
-                onManageAction={(action, payload) =>
-                  handleManageAction(request.id, action, payload)
-                }
+      {requests.length === 0 ? (
+        <EmptyState
+          title="No requests yet"
+          description="Add a request to start tracking documents for this case, or close the case if nothing is outstanding."
+          primaryAction={{
+            label: "Add request",
+            onClick: openNewRequestModal,
+          }}
+          secondaryAction={{ label: "Close case" }}
+        />
+      ) : (
+        <>
+          {blockedRequests.length > 0 && (
+            <section>
+              <div className="rounded-radius-xl border border-border">
+                <CaseRequestTableHeader layout="blocked" />
+                {blockedRequests.map((request) => (
+                  <RequestRow
+                    key={request.id}
+                    request={request}
+                    variant="case-blocked"
+                    referenceDate={referenceDate}
+                    onManageAction={(action, payload) =>
+                      handleManageAction(request.id, action, payload)
+                    }
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          <FilterBar
+            searchPlaceholder="Search all requests"
+            searchValue={search}
+            onSearchChange={setSearch}
+            hasActiveFilters={
+              selectedAssignees.length > 0 ||
+              !arraysEqual(selectedStatuses, defaultSelectedStatuses) ||
+              sortOrder !== DEFAULT_REQUEST_SORT_ORDER
+            }
+            filterPanel={
+              <FiltersPanel
+                title="Filter requests"
+                groups={[
+                  {
+                    label: "Sort by",
+                    mode: "single",
+                    defaultValue: DEFAULT_REQUEST_SORT_ORDER,
+                    options: [
+                      { value: "oldest", label: "Oldest requested" },
+                      { value: "newest", label: "Newest requested" },
+                      { value: "due_soonest", label: "Due soonest" },
+                    ],
+                    selected: [sortOrder],
+                    onToggle: (value) =>
+                      setSortOrder(value as RequestSortOrder),
+                  },
+                  {
+                    label: "Status",
+                    options: statusOptions.map((status) => ({
+                      value: status,
+                      label: getStatusLabel(status),
+                    })),
+                    selected: selectedStatuses,
+                    defaultSelected: defaultSelectedStatuses,
+                    onToggle: (value) => toggleStatus(value as RequestStatus),
+                  },
+                  {
+                    label: "Assignee",
+                    options: assigneeOptions.map((assignee) => ({
+                      value: assignee,
+                      label: assignee,
+                    })),
+                    selected: selectedAssignees,
+                    onToggle: toggleAssignee,
+                  },
+                ]}
+                onClear={() => {
+                  setSelectedAssignees([]);
+                  setSelectedStatuses(defaultSelectedStatuses);
+                  setSortOrder(DEFAULT_REQUEST_SORT_ORDER);
+                }}
               />
-            ))}
-          </div>
-        </section>
+            }
+          />
+
+          <section>
+            <div className="rounded-radius-xl border border-border">
+              <CaseRequestTableHeader />
+
+              {filteredGeneral.length === 0 ? (
+                <div className="rounded-b-radius-xl px-spacing-6 py-spacing-12 text-center">
+                  <p className="text-sm text-text-secondary">
+                    No requests match your filters.
+                  </p>
+                </div>
+              ) : (
+                filteredGeneral.map((request) => (
+                  <RequestRow
+                    key={request.id}
+                    request={request}
+                    variant="case-list"
+                    referenceDate={referenceDate}
+                    onManageAction={(action, payload) =>
+                      handleManageAction(request.id, action, payload)
+                    }
+                  />
+                ))
+              )}
+            </div>
+          </section>
+        </>
       )}
 
-      <FilterBar
-        searchPlaceholder="Search requests"
-        searchValue={search}
-        onSearchChange={setSearch}
-        hasActiveFilters={
-          selectedAssignees.length > 0 ||
-          !arraysEqual(selectedStatuses, defaultSelectedStatuses) ||
-          sortOrder !== DEFAULT_REQUEST_SORT_ORDER
-        }
-        filterPanel={
-          <FiltersPanel
-            title="Filter requests"
-            groups={[
-              {
-                label: "Sort by",
-                mode: "single",
-                defaultValue: DEFAULT_REQUEST_SORT_ORDER,
-                options: [
-                  { value: "oldest", label: "Oldest requested" },
-                  { value: "newest", label: "Newest requested" },
-                  { value: "due_soonest", label: "Due soonest" },
-                ],
-                selected: [sortOrder],
-                onToggle: (value) => setSortOrder(value as RequestSortOrder),
-              },
-              {
-                label: "Status",
-                options: statusOptions.map((status) => ({
-                  value: status,
-                  label: getStatusLabel(status),
-                })),
-                selected: selectedStatuses,
-                defaultSelected: defaultSelectedStatuses,
-                onToggle: (value) => toggleStatus(value as RequestStatus),
-              },
-              {
-                label: "Assignee",
-                options: assigneeOptions.map((assignee) => ({
-                  value: assignee,
-                  label: assignee,
-                })),
-                selected: selectedAssignees,
-                onToggle: toggleAssignee,
-              },
-            ]}
-            onClear={() => {
-              setSelectedAssignees([]);
-              setSelectedStatuses(defaultSelectedStatuses);
-              setSortOrder(DEFAULT_REQUEST_SORT_ORDER);
-            }}
-          />
-        }
+      <NewRequestModal
+        open={newRequestOpen}
+        assigneeOptions={assigneeOptions}
+        defaultAssignee={defaultAssignee}
+        onClose={() => setNewRequestOpen(false)}
+        onSubmit={handleCreateRequest}
       />
-
-      <section>
-        <div className="rounded-radius-xl border border-border">
-          <TableHeader className="flex items-center justify-between rounded-t-radius-xl">
-            <h2 className="text-xs font-semibold uppercase tracking-wide text-text-primary">
-              All Requests
-            </h2>
-            <button
-              type="button"
-              onClick={() => setExpandAllActivity((expanded) => !expanded)}
-              className="text-xs font-medium text-text-secondary"
-            >
-              {expandAllActivity ? "Collapse All Activity" : "Expand All Activity"}
-            </button>
-          </TableHeader>
-
-          {filteredGeneral.length === 0 ? (
-            <div className="rounded-b-radius-xl px-spacing-6 py-spacing-12 text-center">
-              <p className="text-sm text-text-secondary">
-                No requests match your filters.
-              </p>
-            </div>
-          ) : (
-            filteredGeneral.map((request) => (
-              <RequestRow
-                key={`${request.id}-${expandAllActivity}`}
-                request={request}
-                variant="case-list"
-                expandAllActivity={expandAllActivity}
-                onManageAction={(action, payload) =>
-                  handleManageAction(request.id, action, payload)
-                }
-              />
-            ))
-          )}
-        </div>
-      </section>
     </div>
   );
 }
 
-function CaseHeader({ caseData }: { caseData: Case }) {
-  const title = caseData.title;
+function CaseRequestTableHeader({
+  layout = "full",
+}: {
+  layout?: "full" | "blocked";
+}) {
+  const headerClass =
+    layout === "blocked"
+      ? BLOCKED_REQUEST_TABLE_HEADER_CLASS
+      : CASE_REQUEST_TABLE_HEADER_CLASS;
+
+  return (
+    <TableHeader className={`${headerClass} rounded-t-radius-xl`}>
+      <span className={`${TABLE_HEADER_CELL_CLASS} min-w-0`}>
+        {layout === "blocked" ? "Blocked Requests" : "Request"}
+      </span>
+      {layout === "full" && (
+        <>
+          <span className={`${TABLE_HEADER_CELL_CLASS} min-w-0`}>Due</span>
+          <span className={`${TABLE_HEADER_CELL_CLASS} min-w-0`}>
+            Assignee
+          </span>
+          <span className={`${TABLE_HEADER_CELL_CLASS} min-w-0`}>Status</span>
+        </>
+      )}
+      <span aria-hidden="true" />
+    </TableHeader>
+  );
+}
+
+function CaseHeader({
+  caseData,
+  onNewRequest,
+}: {
+  caseData: Case;
+  onNewRequest: () => void;
+}) {
   const subtitleParts: string[] = [];
 
   if (caseData.matterType) {
@@ -273,24 +341,25 @@ function CaseHeader({ caseData }: { caseData: Case }) {
       </Link>
 
       <header className="flex flex-wrap items-start justify-between gap-spacing-4">
-      <div>
-        <h1 className="text-xl font-semibold tracking-tight text-text-primary">
-          {title}
-        </h1>
-        {subtitleParts.length > 0 && (
-          <p className="mt-spacing-1 text-base text-text-secondary">
-            {subtitleParts.join(" · ")}
-          </p>
-        )}
-      </div>
+        <div>
+          <h1 className="text-xl font-semibold tracking-tight text-text-primary">
+            {caseData.title}
+          </h1>
+          {subtitleParts.length > 0 && (
+            <p className="mt-spacing-1 text-base text-text-secondary">
+              {subtitleParts.join(" · ")}
+            </p>
+          )}
+        </div>
 
-      <button
-        type="button"
-        className="inline-flex h-9 items-center gap-spacing-2 rounded-radius-md bg-brand px-spacing-4 text-sm font-medium text-text-inverse hover:bg-brand-hover"
-      >
-        <Plus className="size-spacing-4" />
-        New Request
-      </button>
+        <button
+          type="button"
+          onClick={onNewRequest}
+          className="inline-flex h-button-md items-center gap-spacing-2 rounded-radius-md border border-border bg-surface px-spacing-4 text-sm font-medium text-text-primary hover:bg-surface-hover"
+        >
+          <Plus className="size-spacing-4" />
+          New Request
+        </button>
       </header>
     </div>
   );

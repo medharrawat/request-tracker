@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, FileText, MessageSquare, RefreshCw } from "lucide-react";
+import { FileText, MessageSquare, MoreVertical, RefreshCw } from "lucide-react";
 import type { ManageAction } from "@/lib/types";
 import type { ManageActionPayload } from "@/lib/manage-actions";
 import { ManageActionForm } from "@/components/request/ManageActionForm";
 
 type ManageDropdownProps = {
   sourceLabel?: string;
+  variant?: "default" | "follow-up";
   onAction?: (
     action: ManageAction,
     payload: ManageActionPayload[ManageAction],
@@ -20,7 +21,12 @@ const actions: { id: ManageAction; label: string; icon: typeof FileText }[] = [
   { id: "mark_received", label: "Mark received", icon: FileText },
 ];
 
-export function ManageDropdown({ sourceLabel, onAction }: ManageDropdownProps) {
+export function ManageDropdown({
+  sourceLabel,
+  variant = "default",
+  onAction,
+}: ManageDropdownProps) {
+  const isFollowUp = variant === "follow-up";
   const [open, setOpen] = useState(false);
   const [activeAction, setActiveAction] = useState<ManageAction | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -56,19 +62,36 @@ export function ManageDropdown({ sourceLabel, onAction }: ManageDropdownProps) {
       <button
         type="button"
         onClick={() => {
+          if (isFollowUp) {
+            setOpen((prev) => {
+              const next = !prev;
+              setActiveAction(next ? "follow_up" : null);
+              return next;
+            });
+            return;
+          }
+
           setOpen((prev) => !prev);
           if (open) setActiveAction(null);
         }}
-        className="inline-flex h-8 items-center gap-spacing-2 rounded-radius-md border border-border bg-surface px-spacing-3 text-sm font-medium text-text-primary hover:bg-surface-hover"
+        className={
+          isFollowUp
+            ? "inline-flex h-button-sm items-center rounded-radius-md bg-brand px-spacing-4 text-sm font-medium text-text-inverse hover:bg-brand-hover"
+            : "inline-flex size-button-sm items-center justify-center rounded-radius-md text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+        }
         aria-expanded={open}
-        aria-haspopup="menu"
+        aria-haspopup={isFollowUp ? "dialog" : "menu"}
+        aria-label={isFollowUp ? "Resolve request" : "Manage request"}
       >
-        Manage
-        <ChevronDown className="size-spacing-3 text-text-secondary" />
+        {isFollowUp ? (
+          "Resolve"
+        ) : (
+          <MoreVertical className="size-spacing-4" />
+        )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-spacing-2 w-dropdown overflow-hidden rounded-radius-lg border border-border bg-surface shadow-dropdown">
+        <div className="absolute right-0 top-full z-dropdown mt-spacing-2 w-dropdown overflow-hidden rounded-radius-lg border border-border bg-surface shadow-dropdown">
           {activeAction ? (
             <ManageActionForm
               action={activeAction}

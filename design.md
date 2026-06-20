@@ -87,8 +87,6 @@ Reuse existing primitives before adding new ones:
 - `StatusBadge`, `RequestRow`, `EmptyState`, `PageLoadingSkeleton`
 - `AppShell`, `TopNav`, `Sidebar`
 
-**Note:** `StatusBadge` handles both status pills and case-type pills via an optional `variant` prop (`<StatusBadge status="requested" />` vs. `<StatusBadge variant="case-type" label="Motor Vehicle Accident" />`). There is no separate `CaseTypePill` component — it was consolidated into `StatusBadge` since both use identical pill styling. Do not recreate a separate case-type component; extend the `variant` prop instead if a new pill type is needed.
-
 ---
 
 ## Coding Standards

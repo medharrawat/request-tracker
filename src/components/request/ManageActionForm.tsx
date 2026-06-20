@@ -87,13 +87,13 @@ export function ManageActionForm({
         <button
           type="button"
           onClick={onCancel}
-          className="inline-flex h-8 items-center rounded-radius-md px-spacing-3 text-sm font-medium text-text-secondary hover:bg-surface-hover"
+          className="inline-flex h-button-sm items-center rounded-radius-md px-spacing-3 text-sm font-medium text-text-secondary hover:bg-surface-hover"
         >
           Cancel
         </button>
         <button
           type="submit"
-          className="inline-flex h-8 items-center rounded-radius-md bg-brand px-spacing-3 text-sm font-medium text-text-inverse hover:bg-brand-hover"
+          className="inline-flex h-button-sm items-center rounded-radius-md bg-brand px-spacing-3 text-sm font-medium text-text-inverse hover:bg-brand-hover"
         >
           {action === "add_note"
             ? "Add note"

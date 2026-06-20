@@ -20,7 +20,7 @@ export function EmptyState({
       </div>
 
       <h3 className="text-lg font-semibold text-text-primary">{title}</h3>
-      <p className="mt-spacing-2 max-w-md text-base text-text-secondary">
+      <p className="mt-spacing-2 max-w-prose text-base text-text-secondary">
         {description}
       </p>
 

@@ -10,6 +10,7 @@ type CasePageProps = {
 export default async function CasePage({ params }: CasePageProps) {
   const { id } = await params;
   const caseData = await fetchCase(id);
+  const referenceDate = new Date().toISOString();
 
   if (!caseData) {
     notFound();
@@ -17,7 +18,11 @@ export default async function CasePage({ params }: CasePageProps) {
 
   return (
     <AppShell>
-      <CasePageContent key={caseData.id} caseData={caseData} />
+      <CasePageContent
+        key={caseData.id}
+        caseData={caseData}
+        referenceDate={referenceDate}
+      />
     </AppShell>
   );
 }

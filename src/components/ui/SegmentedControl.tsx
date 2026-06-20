@@ -26,7 +26,7 @@ export function SegmentedControl({
             role="tab"
             aria-selected={isActive}
             onClick={() => onChange(option)}
-            className={`flex h-8 items-center rounded-radius-md px-spacing-4 text-sm font-medium transition-colors ${
+            className={`flex h-button-sm items-center rounded-radius-md px-spacing-4 text-sm font-medium transition-colors ${
               isActive
                 ? "bg-pill-default-bg text-pill-default-text shadow-segment"
                 : "text-text-secondary hover:text-text-primary"

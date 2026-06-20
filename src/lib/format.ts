@@ -1,35 +1,80 @@
 const MS_PER_DAY = 1000 * 60 * 60 * 24;
 
-function startOfDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+type ReferenceDate = string | Date;
+
+function toUtcDay(date: Date): number {
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate());
 }
 
-export function daysSince(iso: string): number {
-  const then = startOfDay(new Date(iso));
-  const now = startOfDay(new Date());
-  return Math.max(0, Math.floor((now.getTime() - then.getTime()) / MS_PER_DAY));
+function resolveReferenceDate(referenceDate?: ReferenceDate): Date {
+  return referenceDate ? new Date(referenceDate) : new Date();
 }
 
-export function daysUntil(iso: string): number {
-  const due = startOfDay(new Date(iso));
-  const now = startOfDay(new Date());
-  return Math.floor((due.getTime() - now.getTime()) / MS_PER_DAY);
+export function daysSince(iso: string, referenceDate?: ReferenceDate): number {
+  const then = toUtcDay(new Date(iso));
+  const now = toUtcDay(resolveReferenceDate(referenceDate));
+  return Math.max(0, Math.floor((now - then) / MS_PER_DAY));
 }
 
-export function formatDaysSinceRequested(iso: string): string {
-  const days = daysSince(iso);
+export function daysUntil(iso: string, referenceDate?: ReferenceDate): number {
+  const due = toUtcDay(new Date(iso));
+  const now = toUtcDay(resolveReferenceDate(referenceDate));
+  return Math.floor((due - now) / MS_PER_DAY);
+}
+
+export function formatDaysSinceRequested(
+  iso: string,
+  referenceDate?: ReferenceDate,
+): string {
+  const days = daysSince(iso, referenceDate);
   if (days === 0) return "Today";
   return `${days} day${days === 1 ? "" : "s"}`;
 }
 
-export function formatDaysUntilDue(iso: string): string {
-  const days = daysUntil(iso);
+export function formatDaysUntilDue(
+  iso: string,
+  referenceDate?: ReferenceDate,
+): string {
+  const days = daysUntil(iso, referenceDate);
   if (days === 0) return "Due today";
   if (days < 0) {
     const overdue = Math.abs(days);
     return `${overdue} day${overdue === 1 ? "" : "s"} overdue`;
   }
   return `${days} day${days === 1 ? "" : "s"}`;
+}
+
+export type DueDateUrgency = "critical" | "warning" | "default";
+
+export function getDueDateUrgency(
+  dueAt: string,
+  referenceDate?: ReferenceDate,
+): DueDateUrgency {
+  const days = daysUntil(dueAt, referenceDate);
+  if (days >= 0) {
+    return "default";
+  }
+
+  const overdue = Math.abs(days);
+  if (overdue >= 50) {
+    return "critical";
+  }
+  if (overdue >= 10) {
+    return "warning";
+  }
+
+  return "default";
+}
+
+export function getDueDateTextClass(urgency: DueDateUrgency): string {
+  switch (urgency) {
+    case "critical":
+      return "text-pill-action-text";
+    case "warning":
+      return "text-status-partial-text";
+    default:
+      return "text-text-secondary";
+  }
 }
 
 export function formatRequestedActivityMessage(source?: string): string {

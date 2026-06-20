@@ -12,11 +12,11 @@ type ActivityHistoryProps = {
 export function ActivityHistory({ entries }: ActivityHistoryProps) {
   return (
     <div className="border-t border-border-subtle bg-surface">
-      <TableHeader className={`${ACTIVITY_ROW_GRID_CLASS} border-b-0`}>
-        <span className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+      <TableHeader className={`${ACTIVITY_ROW_GRID_CLASS} border-b-0 py-spacing-3`}>
+        <span className="text-xs font-medium tracking-wide text-text-secondary">
           Date
         </span>
-        <span className="text-xs font-semibold uppercase tracking-wide text-text-secondary">
+        <span className="text-xs font-medium tracking-wide text-text-secondary">
           Activity
         </span>
       </TableHeader>

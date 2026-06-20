@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
   ChevronDown,
@@ -14,13 +14,20 @@ import {
   formatDate,
   formatDaysUntilDue,
   formatPagesProgress,
+  getDueDateTextClass,
+  getDueDateUrgency,
 } from "@/lib/format";
+import { getStatusLabel } from "@/lib/request-status";
 import { StatusBadge } from "@/components/ui/StatusBadge";
 import { ManageDropdown } from "@/components/request/ManageDropdown";
 import { ActivityHistory } from "./ActivityHistory";
 import { NeedsActionMessage } from "@/components/request/NeedsActionMessage";
 import { getActivityDisplayEntries } from "@/lib/request-dates";
-import { DASHBOARD_ROW_GRID_CLASS } from "@/lib/layout";
+import {
+  BLOCKED_REQUEST_TABLE_ROW_CLASS,
+  CASE_REQUEST_TABLE_ROW_CLASS,
+  DASHBOARD_ROW_GRID_CLASS,
+} from "@/lib/layout";
 
 type RequestRowVariant = "dashboard" | "case-blocked" | "case-list";
 
@@ -35,6 +42,7 @@ type RequestRowProps = {
   showStatusBadge?: boolean;
   expandAllActivity?: boolean;
   dashboardSubtitle?: string;
+  referenceDate?: string;
   onManageAction?: (
     action: ManageAction,
     payload: ManageActionPayload[ManageAction],
@@ -50,7 +58,6 @@ function buildCasePageSubtitle(request: Request): string {
   if (request.source) {
     parts.push(request.source);
   }
-  parts.push(formatDaysUntilDue(request.dueAt));
 
   const pages =
     request.status === "partially_received"
@@ -63,6 +70,48 @@ function buildCasePageSubtitle(request: Request): string {
   return parts.join(" · ");
 }
 
+function DueDateCell({
+  dueAt,
+  referenceDate,
+}: {
+  dueAt?: string | null;
+  referenceDate?: string;
+}) {
+  if (!dueAt) {
+    return (
+      <span className="min-w-0 text-sm text-text-tertiary" aria-hidden="true">
+        —
+      </span>
+    );
+  }
+
+  const urgency = getDueDateUrgency(dueAt, referenceDate);
+
+  return (
+    <span
+      className={`min-w-0 truncate text-sm tabular-nums ${getDueDateTextClass(urgency)}`}
+    >
+      {formatDaysUntilDue(dueAt, referenceDate)}
+    </span>
+  );
+}
+
+function AssigneeCell({ assignee }: { assignee: string }) {
+  return (
+    <span className="min-w-0 truncate text-sm text-text-secondary">
+      {assignee}
+    </span>
+  );
+}
+
+function RequestStatusText({ status }: { status: RequestStatus }) {
+  return (
+    <span className="min-w-0 truncate text-sm text-text-secondary">
+      {getStatusLabel(status)}
+    </span>
+  );
+}
+
 function RequestHeading({
   title,
   status,
@@ -70,7 +119,7 @@ function RequestHeading({
   assignee,
   date,
   showSubtitle,
-  caseType,
+  headerPill,
   subtitle,
 }: {
   title: string;
@@ -79,7 +128,7 @@ function RequestHeading({
   assignee: string;
   date?: string;
   showSubtitle: boolean;
-  caseType?: string;
+  headerPill?: ReactNode;
   subtitle?: string;
 }) {
   const subtitleParts = [assignee];
@@ -94,9 +143,7 @@ function RequestHeading({
         <p className="truncate text-base font-medium text-text-primary">
           {title}
         </p>
-        {caseType && (
-          <StatusBadge variant="case-type" label={caseType} />
-        )}
+        {headerPill}
         {showBadge && <StatusBadge status={status} />}
       </div>
       {showSubtitle && subtitleText && (
@@ -124,7 +171,7 @@ function ActivityChevron({
       }}
       aria-expanded={expanded}
       aria-label={expanded ? "Hide activity" : "Show activity"}
-      className="inline-flex size-8 items-center justify-center rounded-radius-md text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+      className="inline-flex size-button-sm items-center justify-center rounded-radius-md text-text-secondary hover:bg-surface-hover hover:text-text-primary"
     >
       {expanded ? (
         <ChevronDown className="size-spacing-4" />
@@ -146,6 +193,7 @@ export function RequestRow({
   showStatusBadge = true,
   expandAllActivity = false,
   dashboardSubtitle,
+  referenceDate,
   onManageAction,
 }: RequestRowProps) {
   const [activityExpanded, setActivityExpanded] = useState(expandAllActivity);
@@ -160,6 +208,7 @@ export function RequestRow({
   }, [request.activity.length]);
 
   const title = requestTitle(request);
+  const casePageSubtitle = buildCasePageSubtitle(request);
   const isDashboard = variant === "dashboard";
   const isBlocked = variant === "case-blocked";
   const isCasePage = isBlocked || variant === "case-list";
@@ -174,21 +223,27 @@ export function RequestRow({
     setActivityExpanded((open) => !open);
   }
 
+  const blockedPill =
+    blockedCount > 0 ? (
+      <span className="rounded-radius-full bg-pill-action-bg px-spacing-2 py-spacing-1 text-xs font-medium text-pill-action-text">
+        {blockedCount} blocked
+      </span>
+    ) : undefined;
+
   const rowActions = (
     <div
       className="flex shrink-0 items-center justify-end gap-spacing-2"
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
-      {isDashboard && blockedCount > 0 && (
-        <span className="rounded-radius-full bg-pill-action-bg px-spacing-2 py-0.5 text-xs font-medium text-pill-action-text">
-          {blockedCount} blocked
-        </span>
+      {isDashboard && caseType && (
+        <StatusBadge variant="case-type" label={caseType} />
       )}
 
       {isCasePage && (
         <ManageDropdown
           sourceLabel={request.source}
+          variant={isBlocked ? "follow-up" : "default"}
           onAction={onManageAction}
         />
       )}
@@ -197,14 +252,14 @@ export function RequestRow({
         <>
           <button
             type="button"
-            className="inline-flex h-8 items-center gap-spacing-2 rounded-radius-md bg-brand px-spacing-4 text-sm font-medium text-text-inverse hover:bg-brand-hover"
+            className="inline-flex h-button-sm items-center gap-spacing-2 rounded-radius-md bg-brand px-spacing-4 text-sm font-medium text-text-inverse hover:bg-brand-hover"
           >
             <Video className="size-spacing-4" />
             Start
           </button>
           <button
             type="button"
-            className="inline-flex size-8 items-center justify-center rounded-radius-md text-text-secondary hover:bg-surface-hover hover:text-text-primary"
+            className="inline-flex size-button-sm items-center justify-center rounded-radius-md text-text-secondary hover:bg-surface-hover hover:text-text-primary"
             aria-label="More options"
           >
             <MoreVertical className="size-spacing-4" />
@@ -228,40 +283,42 @@ export function RequestRow({
           toggleActivityExpanded();
         }
       }}
-      className="relative flex cursor-pointer items-center gap-spacing-2 px-spacing-6 py-spacing-4 transition-colors hover:bg-surface-hover"
+      className={`relative ${isBlocked ? BLOCKED_REQUEST_TABLE_ROW_CLASS : CASE_REQUEST_TABLE_ROW_CLASS} cursor-pointer transition-colors hover:bg-surface-hover`}
     >
       {!activityExpanded && rowHovered && (
         <div
           role="tooltip"
-          className="pointer-events-none absolute bottom-spacing-2 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap rounded-radius-md border border-border-subtle bg-surface px-spacing-2 py-0.5 text-xs text-text-secondary"
+          className="pointer-events-none absolute bottom-0 left-1/2 z-tooltip -translate-x-1/2 whitespace-nowrap rounded-radius-md border border-border-subtle bg-surface px-spacing-2 py-spacing-1 text-xs text-text-secondary"
         >
           Expand
         </div>
       )}
 
-      <div className="flex w-row-chevron shrink-0 items-center justify-center">
+      <div className="flex min-w-0 items-center gap-spacing-2">
         <ActivityChevron
           expanded={activityExpanded}
           onToggle={toggleActivityExpanded}
         />
-      </div>
 
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-x-spacing-2 gap-y-spacing-1">
+        <div className="min-w-0">
           <p className="truncate text-base font-medium text-text-primary">{title}</p>
-          {!isBlocked && <StatusBadge status={request.status} />}
+          {casePageSubtitle && (
+            <p className="truncate text-sm text-text-secondary">
+              {casePageSubtitle}
+            </p>
+          )}
+          {request.needsActionMessage && isBlocked && (
+            <div className="mt-spacing-2">
+              <NeedsActionMessage message={request.needsActionMessage} />
+            </div>
+          )}
         </div>
-        <p className="truncate text-sm text-text-secondary">
-          {buildCasePageSubtitle(request)}
-        </p>
-        {request.needsActionMessage && isBlocked && (
-          <div className="mt-spacing-2">
-            <NeedsActionMessage message={request.needsActionMessage} />
-          </div>
-        )}
       </div>
 
-      {rowActions}
+      {!isBlocked && <DueDateCell dueAt={request.dueAt} referenceDate={referenceDate} />}
+      {!isBlocked && <AssigneeCell assignee={request.assignee} />}
+      {!isBlocked && <RequestStatusText status={request.status} />}
+      <div className="flex min-w-0 justify-end">{rowActions}</div>
     </div>
   );
 
@@ -271,7 +328,7 @@ export function RequestRow({
     <>
       <div className="flex min-w-0 items-center gap-spacing-4">
         {request.time && (
-          <time className="w-16 shrink-0 text-base tabular-nums text-text-secondary">
+          <time className="w-time-column shrink-0 text-base tabular-nums text-text-secondary">
             {request.time}
           </time>
         )}
@@ -283,7 +340,7 @@ export function RequestRow({
           assignee={request.assignee}
           date={subtitleDate}
           showSubtitle
-          caseType={caseType}
+          headerPill={blockedPill}
           subtitle={dashboardSubtitle}
         />
       </div>
@@ -302,7 +359,7 @@ export function RequestRow({
             <Link href={caseHref} className="flex min-w-0 items-center gap-spacing-4">
               <div className="flex min-w-0 items-center gap-spacing-4">
                 {request.time && (
-                  <time className="w-16 shrink-0 text-base tabular-nums text-text-secondary">
+                  <time className="w-time-column shrink-0 text-base tabular-nums text-text-secondary">
                     {request.time}
                   </time>
                 )}
@@ -313,7 +370,7 @@ export function RequestRow({
                   assignee={request.assignee}
                   date={openedAt}
                   showSubtitle
-                  caseType={caseType}
+                  headerPill={blockedPill}
                   subtitle={dashboardSubtitle}
                 />
               </div>

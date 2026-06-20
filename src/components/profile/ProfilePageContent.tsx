@@ -150,7 +150,7 @@ export function ProfilePageContent() {
           action={
             <button
               type="button"
-              className="inline-flex h-9 items-center rounded-radius-md border border-border px-spacing-4 text-sm font-medium text-text-primary hover:bg-surface-hover"
+              className="inline-flex h-button-md items-center rounded-radius-md border border-border px-spacing-4 text-sm font-medium text-text-primary hover:bg-surface-hover"
             >
               Sign out
             </button>

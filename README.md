@@ -4,6 +4,21 @@ A dashboard for tracking document and information requests across legal cases. P
 
 **Live app:** [https://request-tracking-dashboard.vercel.app](https://request-tracking-dashboard.vercel.app)
 
+## Write-up
+### Decisions and Tradeoffs
+I designed the [Case Page](https://request-tracking-dashboard.vercel.app/cases/case_8f2a) around the assumption that users manage a large volume of cases and requests, so the priority was reducing cognitive load at scale. Each row uses progressive disclosure: condensed by default, expandable to show the activity log combined with last-updated and requested dates. I'd like to validate that condensing additional detail impacts user engagement, by measuring time to first action.
+
+I prioritized a low friction experience for users determining their next action, and showed "days until due" instead of the deadline, to make urgency scannable at a glance. I’m assuming users value speed and simplicity here and would want to validate whether reducing steps impacts user confidence and time to completion. My main tradeoff was time: more went into visual hierarchy than into more features and considering additional edge cases. 
+ 
+### AI Tooling
+I started with Claude to surface a few common pain points and Lovable to save time and get quick prototyping ideas. Then, I built out core design system elements in Figma myself: I've found heavily AI-generated screens tend to have repetitive similar patterns, and I assumed the design should be intuitive and delightful to stand out from competitors. I wrote a rough PRD and used Cursor with the Figma MCP to implement the design, building a design.md file for consistent agentic output. Initial explorations emphasized status color to help users prioritize their next action, but I overrode the decision and placed the emphasis to due date instead, assuming that a single metric over varying status colors would enhance simplicity.
+
+Rough Token Total: 5M tokens across exploration and implementation
+
+## Next Steps
+I'd conduct usability testing to validate the scannability of the table formatting, and check whether the current filters and sort order actually match users' real prioritization habits, iterating from there. I want to explore whether displaying case metrics provides additional value for users quickly determining progress on a case (ex: 20 cases are In Progress). For large datasets, I'd explore simplifying the view based on a user's own assignments. I'd want to test the UI against real datasets to see where it breaks or needs adjustment.
+
+
 ## Getting started
 
 ### Prerequisites

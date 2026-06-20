@@ -7,7 +7,7 @@
   --color-surface-muted: #f0f2fd;
   --color-surface-hover: #f8fafc;
   --color-table-header: #f9fafe;
-  --color-input-background: #ffffff;
+  --color-overlay: rgb(15 23 42 / 0.2);
 
   /* Borders */
   --color-border: #e2e8f0;
@@ -24,7 +24,6 @@
   --color-brand: #0f3a76;
   --color-brand-hover: #0c2f61;
   --color-brand-muted: #f0f2fd;
-  --color-brand-light: #f0f2fd;
 
   /* Pills */
   --color-pill-default-bg: #f0f2fd;
@@ -72,7 +71,6 @@
   --spacing-spacing-5: 20px;
   --spacing-spacing-6: 24px;
   --spacing-spacing-8: 32px;
-  --spacing-spacing-9: 36px;
   --spacing-spacing-10: 40px;
   --spacing-spacing-12: 48px;
 
@@ -105,17 +103,35 @@
   --shadow-dropdown: 0 4px 16px rgba(15, 23, 42, 0.08);
   --shadow-segment: 0 1px 2px rgba(15, 23, 42, 0.06);
 
+  /* Motion */
+  --duration-normal: 200ms;
+
+  /* Z-index */
+  --z-index-sidebar: 40;
+  --z-index-dropdown: 50;
+  --z-index-tooltip: 10;
+
   /* Layout */
   --width-sidebar: 56px;
   --width-sidebar-expanded: 200px;
-  --height-topnav: 49px;
-  --max-width-content: 960px;
-  --width-row-chevron: 32px;
+  --width-request-assignee-column: 140px;
+  --width-request-due-column: 160px;
+  --width-request-status-column: 140px;
+  --width-request-actions-column: 112px;
   --width-blockers-column: 120px;
   --width-activity-date: 140px;
   --width-filter-search: 280px;
+  --width-filter-panel: 280px;
   --width-dropdown: 280px;
-  --width-topnav-org: 160px;
+  --width-modal: 440px;
+  --width-time-column: 64px;
+  --width-skeleton-lg: 192px;
+  --width-skeleton-md: 96px;
+  --max-width-prose: 448px;
+  --height-button-sm: 32px;
+  --height-button-md: 36px;
+  --size-button-sm: 32px;
+  --size-dot: 6px;
 }
 
 body {
